@@ -1,0 +1,4 @@
+name = "resq-mcp"
+version = "0.1.0"
+description = "MCP server exposing QVM analysis tools to AI agents"
+protocol = 1
