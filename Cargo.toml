@@ -1,0 +1,17 @@
+[package]
+name = "resq-mcp"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "RESQ-kit plugin: MCP server exposing QVM analysis tools to AI agents"
+repository = "https://github.com/unite-q3-team/resq-mcp"
+
+[dependencies]
+resq-plugin-sdk = { path = "../resq-plugin-sdk" }
+qvm = { path = "../RESQ-kit/toolchain/qvm" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[[bin]]
+name = "resq-mcp"
+path = "src/main.rs"
