@@ -7,7 +7,7 @@ description = "RESQ-kit plugin: MCP server exposing QVM analysis tools to AI age
 repository = "https://github.com/unite-q3-team/resq-mcp"
 
 [dependencies]
-resq-plugin-sdk = { path = "../resq-plugin-sdk" }
+resq-plugin-sdk = { git = "https://github.com/unite-q3-team/resq-plugin-sdk" }
 qvm = { path = "../RESQ-kit/toolchain/qvm" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
