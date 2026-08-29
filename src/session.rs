@@ -213,25 +213,22 @@ impl Session {
             self.qvm.lit_length,
             self.qvm.bss_length,
         );
-        let (lit0, bss0) = (dl, dl + ll);
-        let (bss1, _) = (bss0 + bl, i32::MAX);
+        let (lit0, bss0, bss1) = (dl, dl + ll, dl + ll + bl);
         let a = addr;
         if a < 0 || a >= bss1 {
             return None; // call target or garbage
         }
         if a < lit0 {
             let mut h = format!("[{a:#x}] data");
-            if let Some(s) = self.qvm.string_at(a) {
-                h.push_str(&format!(" = \"{}\"", crate::tools::clip(&s, 60)));
-            } else {
+            if a % 4 == 0 {
                 let data = self.qvm.data_int32();
-                if let Some(v) = data.get(a as usize) {
+                if let Some(v) = data.get((a / 4) as usize) {
                     h.push_str(&format!(" = {v} ({v:#x})"));
                 }
             }
             return Some(h);
         }
-        if a < lit0 {
+        if a < bss0 {
             let mut h = format!("[{a:#x}] lit");
             let off = (a - lit0) as usize;
             if off + 4 <= self.qvm.lit.len() {
@@ -278,4 +275,67 @@ fn format_insn(ins: &Insn, s: &Session) -> String {
         }
     }
     line
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use qvm::loader::VM_MAGIC;
+    use qvm::traps::Module;
+
+    /// Layout: data = 2 words ([0x11223344, 5]), lit = float 1.5 + "hi\0",
+    /// bss = 8 bytes. Addresses: data [0..8), lit [8..15), bss [15..23).
+    fn fixture() -> Session {
+        let mut data = Vec::new();
+        data.extend_from_slice(&0x11223344i32.to_le_bytes());
+        data.extend_from_slice(&5i32.to_le_bytes());
+        let mut lit = Vec::new();
+        lit.extend_from_slice(&1.5f32.to_le_bytes());
+        lit.extend_from_slice(b"hi\0");
+        let qvm = Qvm {
+            path: "test.qvm".into(),
+            vm_magic: VM_MAGIC,
+            instruction_count: 0,
+            code_offset: 32,
+            code_length: 0,
+            data_offset: 32,
+            data_length: data.len() as i32,
+            lit_length: lit.len() as i32,
+            bss_length: 8,
+            jtrg_length: 0,
+            module: Module::Game,
+            code: Vec::new(),
+            data,
+            lit,
+            jump_table_targets: Vec::new(),
+            names: Default::default(),
+        };
+        Session {
+            qvm,
+            d: Disassembly {
+                insns: Vec::new(),
+                insn_at: Default::default(),
+            },
+            fns: Vec::new(),
+            lit_strings: Vec::new(),
+            by_name: Default::default(),
+            callers: Default::default(),
+        }
+    }
+
+    #[test]
+    fn mem_hint_classifies_segments() {
+        let s = fixture();
+        assert_eq!(s.mem_hint(0).unwrap(), "NULL");
+        assert_eq!(s.mem_hint(4).unwrap(), "[0x4] data = 5 (0x5)");
+        assert_eq!(s.mem_hint(6).unwrap(), "[0x6] data");
+        assert_eq!(s.mem_hint(8).unwrap(), "[0x8] lit = float 1.5");
+        assert_eq!(s.mem_hint(12).unwrap(), "[0xc] lit; string \"hi\"");
+        assert_eq!(
+            s.mem_hint(15).unwrap(),
+            "[0xf] BSS = runtime global (zero at load)"
+        );
+        assert_eq!(s.mem_hint(23), None);
+        assert_eq!(s.mem_hint(-1), None);
+    }
 }
